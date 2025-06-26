@@ -3,7 +3,7 @@
 - Problem   : Maze
 - Algorithm : Uninformed / Informed / Local 
 - Language  : Python
-
+--------------------------
 - **Each Grp** is required to choose one Search Problem.
 - **Each Grp Member** is required to **ONE** search algorithm to solve the problem.
 
