@@ -1,5 +1,7 @@
 # AI_Assignment
 
+Try to use CustomTkinter as GUI
+
 - Problem   : Maze
 - Algorithm : Uninformed / Informed / Local 
 - Language  : Python
