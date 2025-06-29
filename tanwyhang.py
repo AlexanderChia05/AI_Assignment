@@ -1,0 +1,2 @@
+from mazeSamples import mazes
+
