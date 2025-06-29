@@ -1,6 +1,6 @@
 # AI_Assignment
 
-Try to use CustomTkinter as GUI
+Console-based / Split algorithms
 
 - Problem   : Maze
 - Algorithm : Uninformed / Informed / Local 
