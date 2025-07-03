@@ -24,7 +24,6 @@ def manhattan_distance(point_a, point_b):
     """
     return abs(point_a[0] - point_b[0]) + abs(point_a[1] - point_b[1])
 
-
 def get_neighbors(position, maze):
     """
     Get valid neighboring positions (walkable cells only).
@@ -43,7 +42,6 @@ def get_neighbors(position, maze):
         if 0 <= nx < len(maze) and 0 <= ny < len(maze[0]) and maze[nx][ny] == 0:
             neighbors.append((nx, ny))
     return neighbors
-
 
 def visualize_maze(maze, start, end, current_path, traversed_nodes, step):
     """
@@ -65,7 +63,6 @@ def visualize_maze(maze, start, end, current_path, traversed_nodes, step):
     current_position = current_path[-1] if current_path else start
     backtracking = False
     if visualize_maze.prev_path:
-        # Check if current_path is not just an extension of prev_path:
         if not (len(current_path) == len(visualize_maze.prev_path) + 1 and 
                 all(current_path[i] == visualize_maze.prev_path[i] for i in range(len(visualize_maze.prev_path)))):
             backtracking = True
@@ -82,7 +79,7 @@ def visualize_maze(maze, start, end, current_path, traversed_nodes, step):
         explanation = "Goal reached! Path found."
     elif backtracking:
         delay = 0.5
-        explanation = "Backtracking: Exploring a different path with better heuristic..."
+        explanation = "Backtracking: Exploring a different path with better cost..."
     else:
         explanation = "Exploring: Moving to a promising position..."
     
@@ -109,18 +106,15 @@ def visualize_maze(maze, start, end, current_path, traversed_nodes, step):
     print()
     time.sleep(delay)
 
-
-# can change to other algorithms
-def greedy_bfs(start, end, maze, visualize=False):
+def astar(start, end, maze, visualize=False):
     """
-    Solve the maze using Greedy Best-First Search.
+    Solve the maze using A* algorithm.
     
     Args:
         start (list): Starting position [x, y].
         end (list): Goal position [x, y].
         maze (list): 2D grid representing the maze.
         visualize (bool): Whether to visualize the search process.
-        delay (float): Delay between visualization steps.
         
     Returns:
         tuple: (path, nodes_expanded, time_taken, traversed_nodes)
@@ -128,17 +122,18 @@ def greedy_bfs(start, end, maze, visualize=False):
     start_time = time.time()
     start, end = tuple(start), tuple(end)
     
-    position_id = 0  # Tie-breaker for items with same heuristic
-    frontier = [(manhattan_distance(start, end), position_id, start, [start])]
+    position_id = 0  # Tie-breaker for items with same priority
+    # Priority queue: (f_score, position_id, current, path, g_score)
+    frontier = [(manhattan_distance(start, end), position_id, start, [start], 0)]
     heapq.heapify(frontier)
     
-    visited = {start}
+    visited = {start: 0}  # Track visited nodes with their g_scores
     nodes_traversed = 0
     traversed_nodes = []
     step = 0
 
     while frontier:
-        _, _, current, path = heapq.heappop(frontier)
+        f_score, _, current, path, g_score = heapq.heappop(frontier)
         traversed_nodes.append(current)
         nodes_traversed = len(traversed_nodes)
         
@@ -146,7 +141,6 @@ def greedy_bfs(start, end, maze, visualize=False):
             visualize_maze(maze, start, end, path, traversed_nodes, nodes_traversed)
         
         if current == end:
-            time.sleep(0.000000000000000000000000000001)  # Allow time to update
             time_taken = time.time() - start_time
             if visualize:
                 visualize_maze(maze, start, end, path, traversed_nodes, step + 1)
@@ -155,11 +149,14 @@ def greedy_bfs(start, end, maze, visualize=False):
             return path, nodes_traversed, time_taken, traversed_nodes
         
         for neighbor in get_neighbors(current, maze):
-            if neighbor not in visited:
-                visited.add(neighbor)
+            new_g_score = g_score + 1  # Cost to move to neighbor
+            if neighbor not in visited or new_g_score < visited[neighbor]:
+                visited[neighbor] = new_g_score
+                h_score = manhattan_distance(neighbor, end)
+                f_score = new_g_score + h_score
                 new_path = path + [neighbor]
                 position_id += 1
-                heapq.heappush(frontier, (manhattan_distance(neighbor, end), position_id, neighbor, new_path))
+                heapq.heappush(frontier, (f_score, position_id, neighbor, new_path, new_g_score))
     
     time_taken = time.time() - start_time
     if visualize:
@@ -168,12 +165,10 @@ def greedy_bfs(start, end, maze, visualize=False):
         input()
     return [], nodes_traversed, time_taken, traversed_nodes
 
-
 def solve_mazes():
     """
     Solve all maze test cases and print a summary of the results.
     """
-    
     results = []
     print("Tip: Visualize only if using an IDE or CLI rather than an online compiler.")
     visualize_option = input("Do you want to visualize maze traversals? (y/n): ").strip().lower() == 'y'
@@ -193,7 +188,7 @@ def solve_mazes():
                     break
                 if 1 <= choice <= len(maze_test_cases):
                     test_case = maze_test_cases[choice - 1]
-                    greedy_bfs(test_case["start"], test_case["end"], test_case["maze"], visualize=True)
+                    astar(test_case["start"], test_case["end"], test_case["maze"], visualize=True)
                 else:
                     print("Invalid choice. Please try again.")
             except ValueError:
@@ -204,7 +199,7 @@ def solve_mazes():
         maze = test_case["maze"]
         start_point = test_case["start"]
         end_point = test_case["end"]
-        path, nodes_expanded, time_taken, traversed_nodes = greedy_bfs(start_point, end_point, maze, visualize=False)
+        path, nodes_expanded, time_taken, traversed_nodes = astar(start_point, end_point, maze, visualize=False)
     
         solution_found = bool(path)
         steps = len(path) - 1 if solution_found else 0
@@ -230,7 +225,7 @@ def solve_mazes():
               f"{result['solution_found']:^14} |")
     print("+--------+----------+----------+----------------+")
     
-    print("\n\nAlgorithm Performance Metrics for GREEDY-BFS")
+    print("\n\nAlgorithm Performance Metrics for A*")
     print("+--------+---------------------+-------------------+-------------------+-------------------+")
     print("| Maze # | Time (s)            | Nodes Traversed   | Path Length       | Branching Factor  |")
     print("+--------+---------------------+-------------------+-------------------+-------------------+")
