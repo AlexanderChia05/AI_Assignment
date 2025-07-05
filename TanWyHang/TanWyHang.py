@@ -1,6 +1,7 @@
 import os
 import time
 import heapq
+import tracemalloc
 from mazeSamples import maze_test_cases
 
 # Constants
@@ -11,7 +12,7 @@ BLUE = "\033[1;36m"   # Color for current path
 YELLOW = "\033[0;33m" # Color for traversed nodes
 
 # Function definitions
-def manhattan_distance(point_a, point_b):
+def heuristic(point_a, point_b):
     """
     Calculate Manhattan distance between two points.
     
@@ -71,7 +72,7 @@ def visualize_maze(maze, start, end, current_path, traversed_nodes, step):
             backtracking = True
 
     visualize_maze.prev_path = current_path.copy()
-    h_value = manhattan_distance(current_position, end)
+    h_value = heuristic(current_position, end)
     print(f"Current position: {current_position}, Heuristic (Manhattan distance): {h_value}")
     print(f"Nodes expanded: {len(traversed_nodes)}")
     
@@ -127,46 +128,53 @@ def greedy_bfs(start, end, maze, visualize=False):
     """
     start_time = time.time()
     start, end = tuple(start), tuple(end)
-    
+
     position_id = 0  # Tie-breaker for items with same heuristic
-    frontier = [(manhattan_distance(start, end), position_id, start, [start])]
+    frontier = [(heuristic(start, end), position_id, start, [start])]
     heapq.heapify(frontier)
-    
+
     visited = {start}
     nodes_traversed = 0
     traversed_nodes = []
     step = 0
 
+    # Start tracing memory
+    tracemalloc.start()
+
     while frontier:
         _, _, current, path = heapq.heappop(frontier)
         traversed_nodes.append(current)
         nodes_traversed = len(traversed_nodes)
-        
+
         if visualize:
             visualize_maze(maze, start, end, path, traversed_nodes, nodes_traversed)
-        
+
         if current == end:
             time.sleep(0.000000000000000000000000000001)  # Allow time to update
             time_taken = time.time() - start_time
+            peak_memory = tracemalloc.get_traced_memory()[1]
+            tracemalloc.stop()
             if visualize:
                 visualize_maze(maze, start, end, path, traversed_nodes, step + 1)
                 print("Path found! Press Enter to continue...")
                 input()
-            return path, nodes_traversed, time_taken, traversed_nodes
-        
+            return path, nodes_traversed, time_taken, traversed_nodes, peak_memory
+
         for neighbor in get_neighbors(current, maze):
             if neighbor not in visited:
                 visited.add(neighbor)
                 new_path = path + [neighbor]
                 position_id += 1
-                heapq.heappush(frontier, (manhattan_distance(neighbor, end), position_id, neighbor, new_path))
-    
+                heapq.heappush(frontier, (heuristic(neighbor, end), position_id, neighbor, new_path))
+
     time_taken = time.time() - start_time
+    peak_memory = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
     if visualize:
         visualize_maze(maze, start, end, [], traversed_nodes, step + 1)
         print("No path found! Press Enter to continue...")
         input()
-    return [], nodes_traversed, time_taken, traversed_nodes
+    return [], nodes_traversed, time_taken, traversed_nodes, peak_memory
 
 
 def solve_mazes():
@@ -204,8 +212,8 @@ def solve_mazes():
         maze = test_case["maze"]
         start_point = test_case["start"]
         end_point = test_case["end"]
-        path, nodes_expanded, time_taken, traversed_nodes = greedy_bfs(start_point, end_point, maze, visualize=False)
-    
+        path, nodes_expanded, time_taken, traversed_nodes, peak_memory = greedy_bfs(start_point, end_point, maze, visualize=False)
+
         solution_found = bool(path)
         steps = len(path) - 1 if solution_found else 0
         results.append({
@@ -216,6 +224,7 @@ def solve_mazes():
             "steps": steps,
             "time": time_taken,
             "nodes_expanded": nodes_expanded,
+            "peak_memory_mb": peak_memory / (1024 * 1024),
         })
     
     # Print summary tables
@@ -230,19 +239,29 @@ def solve_mazes():
               f"{result['solution_found']:^14} |")
     print("+--------+----------+----------+----------------+")
     
+    GREEN = "\033[1;32m"
+    RED = "\033[1;31m"
+    RESET = "\033[0m"
     print("\n\nAlgorithm Performance Metrics for GREEDY-BFS")
-    print("+--------+---------------------+-------------------+-------------------+-------------------+")
-    print("| Maze # | Time (s)            | Nodes Traversed   | Path Length       | Branching Factor  |")
-    print("+--------+---------------------+-------------------+-------------------+-------------------+")
+    print("+--------+---------------------+-------+-------------------+-------------------+-------------------+-------+-------------------+")
+    print("| Maze # | Time (s)            |  < 1s | Nodes Traversed   | Path Length       | Branching Factor  |  <1MB | Peak Memory (MB)  |")
+    print("+--------+---------------------+-------+-------------------+-------------------+-------------------+-------+-------------------+")
     for result in results:
         path_length = result['steps'] + 1 if result['solution_found'] == "Yes" else 0
         branching_factor = (result['nodes_expanded'] / path_length) if path_length > 0 else 0
+        # Green * for time < 1s, red otherwise
+        time_star = f"  {GREEN}*{RESET}  " if result['time'] < 1 else f"  {RED}*{RESET}  "
+        # Green * for peak memory < 1MB, red otherwise
+        mem_star = f"  {GREEN}*{RESET}  " if result['peak_memory_mb'] < 1 else f"  {RED}*{RESET}  "
         print(f"| {result['maze_num']:^6} | "
               f"{result['time']:<19.16f} | "
+              f"{time_star:^7} | "
               f"{result['nodes_expanded']:^17} | "
               f"{path_length:^17} | "
-              f"{branching_factor:^17.2f} |")
-    print("+--------+---------------------+-------------------+-------------------+-------------------+")
+              f"{branching_factor:^17.2f} | "
+              f"{mem_star:^7} | "
+              f"{result['peak_memory_mb']:^17.6f} |")
+    print("+--------+---------------------+-------+-------------------+-------------------+-------------------+-------+-------------------+")
 
 if __name__ == "__main__":
     solve_mazes()
