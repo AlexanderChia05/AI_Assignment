@@ -46,7 +46,7 @@ def get_neighbors(position, maze):
     return neighbors
 
 
-def visualize_maze(maze, start, end, current_path, traversed_nodes, step):
+def visualize_maze(maze, start, end, current_path, traversed_nodes, step, ansi=True):
     """
     Visualize the maze with current path and traversed nodes.
     
@@ -92,27 +92,43 @@ def visualize_maze(maze, start, end, current_path, traversed_nodes, step):
     for i in range(len(maze)):
         for j in range(len(maze[0])):
             pos = (i, j)
-            if pos == start:
-                print(f"{GREEN}S", end="\033[0m ")
-            elif pos == end:
-                print(f"{RED}E", end="\033[0m ")
-            elif pos == current_position:
-                print(f"{HEAD}@", end="\033[0m ")
-            elif pos in current_path:
-                print(f"{BLUE}*", end="\033[0m ")
-            elif pos in traversed_nodes:
-                print(f"{YELLOW}.", end="\033[0m ")
-            elif maze[i][j] == 1:
-                print("0", end=" ")
+            if ansi:
+                if pos == start:
+                    print(f"{GREEN}S", end="\033[0m ")
+                elif pos == end:
+                    print(f"{RED}E", end="\033[0m ")
+                elif pos == current_position:
+                    print(f"{HEAD}@", end="\033[0m ")
+                elif pos in current_path:
+                    print(f"{BLUE}*", end="\033[0m ")
+                elif pos in traversed_nodes:
+                    print(f"{YELLOW}.", end="\033[0m ")
+                elif maze[i][j] == 1:
+                    print("0", end=" ")
+                else:
+                    print(" ", end=" ")
             else:
-                print(" ", end=" ")
+                if pos == start:
+                    print("S", end=" ")
+                elif pos == end:
+                    print("E", end=" ")
+                elif pos == current_position:
+                    print("@", end=" ")
+                elif pos in current_path:
+                    print("*", end=" ")
+                elif pos in traversed_nodes:
+                    print(".", end=" ")
+                elif maze[i][j] == 1:
+                    print("0", end=" ")
+                else:
+                    print(" ", end=" ")
         print()
     print()
     time.sleep(delay)
 
 
 # can change to other algorithms
-def greedy_bfs(start, end, maze, visualize=False):
+def greedy_bfs(start, end, maze, visualize=False, ansi=True):
     """
     Solve the maze using Greedy Best-First Search.
     
@@ -121,10 +137,10 @@ def greedy_bfs(start, end, maze, visualize=False):
         end (list): Goal position [x, y].
         maze (list): 2D grid representing the maze.
         visualize (bool): Whether to visualize the search process.
-        delay (float): Delay between visualization steps.
+        ansi (bool): Whether to use ANSI color in visualization.
         
     Returns:
-        tuple: (path, nodes_expanded, time_taken, traversed_nodes)
+        tuple: (path, nodes_expanded, time_taken, traversed_nodes, peak_memory)
     """
     start_time = time.time()
     start, end = tuple(start), tuple(end)
@@ -147,7 +163,7 @@ def greedy_bfs(start, end, maze, visualize=False):
         nodes_traversed = len(traversed_nodes)
 
         if visualize:
-            visualize_maze(maze, start, end, path, traversed_nodes, nodes_traversed)
+            visualize_maze(maze, start, end, path, traversed_nodes, nodes_traversed, ansi=ansi)
 
         if current == end:
             time.sleep(0.000000000000000000000000000001)  # Allow time to update
@@ -155,7 +171,7 @@ def greedy_bfs(start, end, maze, visualize=False):
             peak_memory = tracemalloc.get_traced_memory()[1]
             tracemalloc.stop()
             if visualize:
-                visualize_maze(maze, start, end, path, traversed_nodes, step + 1)
+                visualize_maze(maze, start, end, path, traversed_nodes, step + 1, ansi=ansi)
                 print("Path found! Press Enter to continue...")
                 input()
             return path, nodes_traversed, time_taken, traversed_nodes, peak_memory
@@ -171,22 +187,25 @@ def greedy_bfs(start, end, maze, visualize=False):
     peak_memory = tracemalloc.get_traced_memory()[1]
     tracemalloc.stop()
     if visualize:
-        visualize_maze(maze, start, end, [], traversed_nodes, step + 1)
+        visualize_maze(maze, start, end, [], traversed_nodes, step + 1, ansi=ansi)
         print("No path found! Press Enter to continue...")
         input()
     return [], nodes_traversed, time_taken, traversed_nodes, peak_memory
 
 
-def solve_mazes():
+def main():
     """
     Solve all maze test cases and print a summary of the results.
     """
-    
     results = []
     print("Tip: Visualize only if using an IDE or CLI rather than an online compiler.")
     visualize_option = input("Do you want to visualize maze traversals? (y/n): ").strip().lower() == 'y'
-    
+
+    ansi_color = True
     if visualize_option:
+        ansi_choice = input("Use ANSI color in visualization? (ANSI not available for online compiler) (y/n): ").strip().lower()
+        ansi_color = ansi_choice == 'y'
+
         while True:
             print("\nWhich test case would you like to visualize?")
             for i, test_case in enumerate(maze_test_cases, 1):
@@ -194,14 +213,14 @@ def solve_mazes():
                 end_point = tuple(test_case["end"])
                 print(f"  {i}. Case {i}: Start {start_point} -> End {end_point}")
             print("  0. Exit visualization and run all tests")
-    
+
             try:
                 choice = int(input("Enter your choice: "))
                 if choice == 0:
                     break
                 if 1 <= choice <= len(maze_test_cases):
                     test_case = maze_test_cases[choice - 1]
-                    greedy_bfs(test_case["start"], test_case["end"], test_case["maze"], visualize=True)
+                    greedy_bfs(test_case["start"], test_case["end"], test_case["maze"], visualize=True, ansi=ansi_color)
                 else:
                     print("Invalid choice. Please try again.")
             except ValueError:
@@ -244,24 +263,24 @@ def solve_mazes():
     RESET = "\033[0m"
     print("\n\nAlgorithm Performance Metrics for GREEDY-BFS")
     print("+--------+---------------------+-------+-------------------+-------------------+-------------------+-------+-------------------+")
-    print("| Maze # | Time (s)            |  < 1s | Nodes Traversed   | Path Length       | Branching Factor  |  <1MB | Peak Memory (MB)  |")
+    print("| Maze # | Time (s)            | <1s   | Nodes Traversed   | Path Length       | Branching Factor  | <1MB  | Peak Memory (MB)  |")
     print("+--------+---------------------+-------+-------------------+-------------------+-------------------+-------+-------------------+")
     for result in results:
         path_length = result['steps'] + 1 if result['solution_found'] == "Yes" else 0
         branching_factor = (result['nodes_expanded'] / path_length) if path_length > 0 else 0
-        # Green * for time < 1s, red otherwise
-        time_star = f"  {GREEN}*{RESET}  " if result['time'] < 1 else f"  {RED}*{RESET}  "
-        # Green * for peak memory < 1MB, red otherwise
-        mem_star = f"  {GREEN}*{RESET}  " if result['peak_memory_mb'] < 1 else f"  {RED}*{RESET}  "
+        # Pass/Fail for time < 1s
+        time_status = "PASS" if result['time'] < 1 else "FAIL"
+        # Pass/Fail for peak memory < 1MB
+        mem_status = "PASS" if result['peak_memory_mb'] < 1 else "FAIL"
         print(f"| {result['maze_num']:^6} | "
               f"{result['time']:<19.16f} | "
-              f"{time_star:^7} | "
+              f"{time_status:^5} | "
               f"{result['nodes_expanded']:^17} | "
               f"{path_length:^17} | "
               f"{branching_factor:^17.2f} | "
-              f"{mem_star:^7} | "
+              f"{mem_status:^5} | "
               f"{result['peak_memory_mb']:^17.6f} |")
     print("+--------+---------------------+-------+-------------------+-------------------+-------------------+-------+-------------------+")
 
 if __name__ == "__main__":
-    solve_mazes()
+    main()
