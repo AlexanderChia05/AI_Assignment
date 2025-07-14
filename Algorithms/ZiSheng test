@@ -1,0 +1,142 @@
+import random
+
+# Maze dimensions
+WIDTH = 48
+HEIGHT = 48
+
+# Directions: North, East, South, West
+DIRECTIONS = [(-2, 0), (0, 2), (2, 0), (0, -2)]
+
+# Initialize maze with all walls (1)
+maze = [[1 for _ in range(WIDTH)] for _ in range(HEIGHT)]
+
+def is_valid(x, y):
+    return 0 <= x < HEIGHT and 0 <= y < WIDTH
+
+def count_adjacent_paths(x, y):
+    """Count the number of adjacent path cells (0s) around (x, y)."""
+    count = 0
+    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        nx, ny = x + dx, y + dy
+        if is_valid(nx, ny) and maze[nx][ny] == 0:
+            count += 1
+    return count
+
+def carve(x, y):
+    # Mark current cell as visited (carve it)
+    maze[x][y] = 0
+
+    # Shuffle directions to visit neighbors randomly
+    random.shuffle(DIRECTIONS)
+
+    for dx, dy in DIRECTIONS:
+        nx, ny = x + dx, y + dy
+        mx, my = x + dx // 2, y + dy // 2
+        if is_valid(nx, ny) and maze[nx][ny] == 1:
+            # Prevent loops: only carve if the midpoint and target have at most one adjacent path
+            if count_adjacent_paths(mx, my) <= 1 and count_adjacent_paths(nx, ny) <= 1:
+                maze[mx][my] = 0
+                carve(nx, ny)
+
+# Start carving from top-left corner (even coordinates required)
+carve(1, 1)
+
+# Add one space padding (border) to the bottom and right side
+for row in maze:
+    row.append(1)
+maze.append([1] * (WIDTH + 1))
+HEIGHT += 1
+WIDTH += 1
+
+# Print the maze
+print("Generated Maze:")
+for row in maze:
+    print(' '.join(' ' if cell == 0 else '1' for cell in row))
+
+# Find all open cells (0s)
+open_cells = [(i, j) for i in range(len(maze)) for j in range(len(maze[0])) if maze[i][j] == 0]
+
+# Focus more on first and second quartile
+open_cells_sorted = sorted(open_cells, key=lambda x: (x[0], x[1]))
+n = len(open_cells_sorted)
+q1 = open_cells_sorted[:n // 2]  # first and second quartile (first half)
+
+# Sample 20 random open cells
+sampled_cells = random.sample(q1, 20)
+random.shuffle(sampled_cells)
+
+print("\n20 random open [row, col] locations (biased to first and second quartile):")
+for cell in sampled_cells:
+    print(list(cell))
+
+# Output the maze as a Python list in a string
+maze_str = "[\n" + ",\n".join(str(row) for row in maze) + "\n]"
+print("\nMaze as Python list:")
+print(maze_str)
+
+# DFS to solve the maze
+def solve_maze_dfs(maze, start, end):
+    """
+    Solve the maze using DFS.
+    :param maze: 2D list representing the maze (0 for path, 1 for wall)
+    :param start: Tuple (row, col) for the starting position
+    :param end: Tuple (row, col) for the ending position
+    :return: List of (row, col) tuples representing the path, or None if no path exists
+    """
+    def is_valid_dfs(x, y):
+        """Check if (x, y) is within bounds and is a path (0)."""
+        return 0 <= x < len(maze) and 0 <= y < len(maze[0]) and maze[x][y] == 0
+
+    def dfs(x, y, visited, path):
+        """DFS to find a path from (x, y) to end."""
+        if (x, y) == end:
+            return path + [(x, y)]
+
+        directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+            if is_valid_dfs(nx, ny) and (nx, ny) not in visited:
+                visited.add((nx, ny))
+                new_path = dfs(nx, ny, visited, path + [(x, y)])
+                if new_path:
+                    return new_path
+                visited.remove((nx, ny))  # Backtrack
+        return None
+
+    visited = {start}
+    path = dfs(start[0], start[1], visited, [])
+    return path
+
+# Select start and end points from sampled_cells
+start = sampled_cells[0]
+end = sampled_cells[1]
+if start == end:
+    end = sampled_cells[2]  # Use next cell if same
+
+print(f"\nStart position: {start}")
+print(f"End position: {end}")
+
+# Solve the maze
+path = solve_maze_dfs(maze, start, end)
+
+# Print the result
+if path:
+    print("\nPath found from start to end:")
+    for pos in path:
+        print(list(pos))
+    print(f"Path length: {len(path)}")
+else:
+    print("\nNo path found from start to end.")
+
+# Visualize the maze with the path
+def print_maze_with_path(maze, path):
+    """Print the maze with the path marked as '*'."""
+    maze_copy = [row[:] for row in maze]  # Create a copy of the maze
+    if path:
+        for x, y in path:
+            maze_copy[x][y] = '*'  # Mark path cells
+    print("\nMaze with path (* indicates the path):")
+    for row in maze_copy:
+        print(' '.join(str(cell) if cell != 0 else ' ' for cell in row))
+
+print_maze_with_path(maze, path)
